@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "167221051633",
+    "firebase_url": "https://stocker-5c0a4.firebaseio.com",
+    "project_id": "stocker-5c0a4",
+    "storage_bucket": "stocker-5c0a4.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:167221051633:android:8b0253cc0a33f99132e950",
+        "android_client_info": {
+          "package_name": "io.github.eufranio.stocker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "167221051633-s9k239gr8roasgss2h464g68vi4lbs5g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.github.eufranio.stocker",
+            "certificate_hash": "70d5669d2759809311e5433a097d3d8571237a24"
+          }
+        },
+        {
+          "client_id": "167221051633-c00tkjnn44esdrm3fkvk7eu5rlgo832r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPPyVC2FNZ-6hRx0oEiUTAUsEpF_5IU0I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "167221051633-c00tkjnn44esdrm3fkvk7eu5rlgo832r.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

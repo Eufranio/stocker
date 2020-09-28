@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A simple storage/logistics app">
+
+  <meta name="google-signin-client_id" content="167221051633-c00tkjnn44esdrm3fkvk7eu5rlgo832r.apps.googleusercontent.com">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="stocker">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="shortcut icon" type="image/png" href="favicon.png"/>
+
+  <title>stocker</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <!-- The core Firebase JS SDK is always required and must be listed first -->
+  <script src="https://www.gstatic.com/firebasejs/7.15.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.15.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.15.0/firebase-analytics.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.15.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.15.0/cloud_storage.js"></script>
+
+  <script>
+    var firebaseConfig = {
+      apiKey: "AIzaSyC5Xu2-lnr_aeOUxPwhbAGBOKlKpuVqU-8",
+      authDomain: "stocker-5c0a4.firebaseapp.com",
+      databaseURL: "https://stocker-5c0a4.firebaseio.com",
+      projectId: "stocker-5c0a4",
+      storageBucket: "stocker-5c0a4.appspot.com",
+      messagingSenderId: "167221051633",
+      appId: "1:167221051633:web:9dfd9ce32fdd268f32e950",
+      measurementId: "G-3QB6JW8KLT"
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+  </script>
+
+  <!-- This script installs service_worker.js to provide PWA functionality to
+       application. For more information, see:
+       https://developers.google.com/web/fundamentals/primers/service-workers -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('flutter_service_worker.js');
+      });
+    }
+  </script>
+  <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>
