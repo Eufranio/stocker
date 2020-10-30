@@ -7,18 +7,29 @@ import 'package:stocker/components/firebase_auth_service.dart';
 import 'package:stocker/components/user.dart';
 import 'package:stocker/screens/home.dart';
 import 'package:stocker/screens/login.dart';
+import 'package:stocker/components/widgets/stream_utils.dart';
+
+class Main {
+  static FirebaseAuthService authService;
+  static Stream<User> get userStream => authService.currentUser;
+}
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  var authService = FirebaseAuthService();
+  Main.authService = authService;
+
   Intl.defaultLocale = 'pt_BR';
-  initializeDateFormatting().then((value) => runApp(MultiProvider(
+  initializeDateFormatting()
+      .then((value) => authService.checkCurrentUser())
+      .then((value) => runApp(MultiProvider(
     providers: [
-      ChangeNotifierProvider(create: (_) => FirebaseAuthService()),
-      ProxyProvider<FirebaseAuthService, User>(
-          update: (_, service, user) => service.user
-      ),
+      StreamProvider(create: (_) => authService.currentUser),
       ProxyProvider<User, DocumentReference>(
-          update: (_, user, ref) => Firestore.instance.collection('users').document(user.uid)
-      )
+          update: (context, user, ref) => Firestore.instance.collection('users').document(user.uid)
+      ),
+      ChangeNotifierProvider.value(value: authService)
     ],
     child: MyApp(),
   )));

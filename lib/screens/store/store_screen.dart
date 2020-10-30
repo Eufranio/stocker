@@ -124,7 +124,7 @@ class StoreScreen extends StatelessWidget {
                   RaisedButton.icon(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => AttributeListScreen(store)));
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => AttributeListScreen(store, context.read<DocumentReference>())));
                       },
                       icon: Icon(Icons.edit),
                       label: Text('Atributos'),

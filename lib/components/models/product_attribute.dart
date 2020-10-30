@@ -2,7 +2,7 @@ class ProductAttribute {
 
   String id, type, value;
 
-  ProductAttribute(this.id, this.type, this.value);
+  ProductAttribute([this.id, this.type, this.value]);
 
   ProductAttribute.fromMap(String id, Map snapshot) :
       id = id,

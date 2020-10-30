@@ -2,7 +2,7 @@ class AttributeType {
 
   String id, name;
 
-  AttributeType(this.id, this.name);
+  AttributeType([this.id, this.name]);
 
   AttributeType.fromMap(String id, Map snapshot) :
       id = id,

@@ -2,61 +2,54 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flappy_search_bar/flappy_search_bar.dart';
 import 'package:flappy_search_bar/search_bar_style.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:stocker/components/models/attribute_type.dart';
-import 'package:stocker/components/models/product_attribute.dart';
 import 'package:stocker/components/models/store.dart';
+import 'package:stocker/components/viewmodels/attribute/attribute_view_model.dart';
+import 'package:stocker/components/widgets/stream_utils.dart';
+import 'package:stocker/screens/attribute/create_attribute_dialog.dart';
+import 'package:stocker/screens/attribute/create_attribute_type_dialog.dart';
 
 class AttributeListScreen extends StatefulWidget {
 
-  final Store store;
-  final List<AttributeType> attributes = List();
+  final AttributeViewModel viewModel;
 
-  AttributeListScreen(this.store);
+  AttributeListScreen(Store store, DocumentReference userRef) : viewModel = AttributeViewModel(store, userRef);
 
   @override
   State createState() => _AttributeListScreenState();
+
 }
 
 class _AttributeListScreenState extends State<AttributeListScreen> {
 
+  var key = GlobalKey<ScaffoldState>();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: key,
       appBar: AppBar(
-        title: Text('Atributos de ${widget.store.name}'),
-        actions: <Widget>[
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: () => _showCreateDialog(context),
-          )
-        ],
+        title: Text(widget.viewModel.appBarTitle),
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        onPressed: () => _showCreateDialog(context),
+        onPressed: () => _showCreateAttributeTypeDialog(context).then((value) {
+          if (value == true) {
+            key.currentState.showSnackBar(SnackBar(
+              content: Text('Novo tipo de atributo adicionado com sucesso!'),
+              backgroundColor: Colors.purple,
+              duration: Duration(seconds: 2),
+            ));
+          }
+        }),
       ),
       body: Container(
-        child: StreamBuilder(
-          stream: context.watch<DocumentReference>()
-              .collection('stores')
-              .document(widget.store.id)
-              .collection('attribute_types')
-              .snapshots(),
-          builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-            if (snapshot.hasData) {
-              widget.attributes.clear();
-              widget.attributes.addAll(snapshot.data.documents.map((e) => AttributeType.fromMap(e.documentID, e.data)));
-              return _buildSearchBar();
-            }
-            return Center(child: CircularProgressIndicator());
-          }
-        ),
+        child: widget.viewModel.attributeTypes.streamBuilder(_buildSearchBar)
       ),
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(List<AttributeType> types) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 15),
       child: SearchBar<AttributeType>(
@@ -69,9 +62,7 @@ class _AttributeListScreenState extends State<AttributeListScreen> {
             padding: EdgeInsets.symmetric(horizontal: 10),
             borderRadius: BorderRadius.circular(30)
         ),
-        onSearch: (str) async {
-          return widget.attributes.where((element) => element.name.startsWith(str)).toList();
-        },
+        onSearch: widget.viewModel.search,
         onItemFound: (attribute, index) => Container(
           color: Color.fromRGBO(142, 142, 147, .15),
           child: ListTile(
@@ -80,58 +71,49 @@ class _AttributeListScreenState extends State<AttributeListScreen> {
             onTap: () => _showListDialog(context, attribute),
             trailing: IconButton(
               icon: Icon(Icons.delete, color: Colors.purpleAccent,),
-              onPressed: () => _showDeleteDialog(context, attribute),
+              onPressed: () => _showDeleteDialog(context, attribute).then((value) {
+                if (value == true) {
+                  key.currentState.showSnackBar(SnackBar(
+                    content: Text('Tipo de atributo removido com sucesso!'),
+                    backgroundColor: Colors.purple,
+                    duration: Duration(seconds: 2),
+                  ));
+                }
+              }),
             )
           ),
         ),
-        suggestions: widget.attributes,
+        suggestions: types,
       ),
     );
   }
 
-  _showCreateDialog(BuildContext context) {
-    var key = GlobalKey<FormState>();
-    showDialog(context: context, child: AlertDialog(
-      title: Text('Novo Atributo'),
-      content: Form(
-          key: key,
-          child: TextFormField(
-            autofocus: true,
-            initialValue: 'Nome',
-            validator: (val) => val.isEmpty ? 'O nome não pode ser vazio!' : null,
-            autovalidate: true,
-            onSaved: (val) {
-              context.read<DocumentReference>()
-                  .collection('stores')
-                  .document(widget.store.id)
-                  .collection('attribute_types')
-                  .document()
-                  .setData(AttributeType(null, val).toJson());
-            },
-          )
-      ),
-      actions: <Widget>[
-        FlatButton(
-          child: Text('Fechar'),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
-        FlatButton(
-          onPressed: () {
-            if (key.currentState.validate()) {
-              key.currentState.save();
-              Navigator.of(context).pop();
-            }
-          },
-          child: Text('Salvar'),
-        )
-      ],
-    ));
+  _showCreateAttributeDialog(BuildContext context, AttributeType type) {
+    showDialog(
+        context: context,
+        child: CreateAttributeDialogScreen(
+            widget.viewModel.store, widget.viewModel.userRef))
+        .then((value) {
+      if (value == true) {
+        key.currentState.showSnackBar(SnackBar(
+          content: Text('Novo atributo adicionado com sucesso!'),
+          backgroundColor: Colors.purple,
+          duration: Duration(seconds: 2),
+        ));
+      }
+    });
   }
 
-  _showDeleteDialog(BuildContext context, AttributeType attribute) {
-    showDialog(context: context, child: AlertDialog(
+  Future _showCreateAttributeTypeDialog(BuildContext context) {
+    return showDialog(
+        context: context,
+        child: CreateAttributeTypeDialogScreen(
+            widget.viewModel.store, widget.viewModel.userRef)
+    );
+  }
+
+  Future _showDeleteDialog(BuildContext context, AttributeType attribute) {
+    return showDialog(context: context, child: AlertDialog(
         title: Text('Remover'),
         content: Text('Você tem certeza que deseja remover esse atributo?'),
         actions: <Widget>[
@@ -142,16 +124,8 @@ class _AttributeListScreenState extends State<AttributeListScreen> {
             },
           ),
           FlatButton(
-            onPressed: () {
-              context.read<DocumentReference>()
-                  .collection('stores')
-                  .document(widget.store.id)
-                  .collection('attribute_types')
-                  .document(attribute.id)
-                  .delete();
-
-              Navigator.of(context).pop();
-            },
+            onPressed: () => widget.viewModel.deleteAttributeType(attribute)
+                .then((value) => Navigator.of(context).pop(true)),
             child: Text('Remover'),
           )
         ]
@@ -162,108 +136,34 @@ class _AttributeListScreenState extends State<AttributeListScreen> {
     showDialog(context: context, child: AlertDialog(
         scrollable: true,
         title: Text(attribute.name),
-        content: StreamBuilder(
-            stream: context.read<DocumentReference>()
-                .collection('stores')
-                .document(widget.store.id)
-                .collection('product_attributes')
-                .where('type', isEqualTo: attribute.id)
-                .snapshots(),
-            builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-              if (snapshot.hasData) {
-                List<ProductAttribute> attributes = snapshot.data.documents.map((e) =>
-                    ProductAttribute.fromMap(e.documentID, e.data)).toList();
-                return attributes.isEmpty ? Text("Nada para mostrar") : Container(
-                  width: 400,
-                  height: 200,
-                  child: ListView.builder(
-                      itemCount: attributes.length,
-                      itemBuilder: (context, index) => ListTile(
+        content: widget.viewModel.getProductAttributes(attribute)
+            .streamBuilder((attributes) {
+          return attributes.isEmpty ? Text("Nada para mostrar") : Container(
+              width: 400,
+              height: 200,
+              child: ListView.builder(
+                  itemCount: attributes.length,
+                  itemBuilder: (context, index) =>
+                      ListTile(
                         title: Text(attributes[index].value, style: TextStyle(color: Colors.purpleAccent)),
                         trailing: IconButton(
                             icon: Icon(Icons.delete),
-                            onPressed: () {
-                              context.read<DocumentReference>()
-                                  .collection('stores')
-                                  .document(widget.store.id)
-                                  .collection('product_attributes')
-                                  .document(attributes[index].id)
-                                  .delete();
-                            }
+                            onPressed: () => widget.viewModel.deleteProductAttribute(attributes[index])
                         ),
                       )
-                  )
-                );
-              }
-              return Center(child: CircularProgressIndicator());
-            }
-        ),
+              )
+          );
+        }),
         actions: <Widget>[
           FlatButton(
             child: Text('Fechar'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
+            onPressed: () => Navigator.of(context).pop(),
           ),
           FlatButton(
-            child: Text('Novo'),
-            onPressed: () => _showAddAttributeDialog(context, attribute)
+              child: Text('Novo'),
+              onPressed: () => _showCreateAttributeDialog(context, attribute)
           ),
-          /*FlatButton(
-            onPressed: () {
-              context.read<DocumentReference>()
-                  .collection('stores')
-                  .document(widget.store.id)
-                  .collection('attribute_types')
-                  .document(attribute.id)
-                  .delete();
-
-              Navigator.of(context).pop();
-            },
-            child: Text('Remover'),
-          )*/
         ]
-    ));
-  }
-
-  _showAddAttributeDialog(BuildContext context, AttributeType type) {
-    var key = GlobalKey<FormState>();
-    showDialog(context: context, child: AlertDialog(
-      title: Text('Novo Atributo'),
-      content: Form(
-          key: key,
-          child: TextFormField(
-            autofocus: true,
-            initialValue: 'Valor',
-            validator: (val) => val.trim().isEmpty ? 'O valor não pode ser vazio!' : null,
-            autovalidate: true,
-            onSaved: (val) {
-              context.read<DocumentReference>()
-                  .collection('stores')
-                  .document(widget.store.id)
-                  .collection('product_attributes')
-                  .document()
-                  .setData(ProductAttribute(null, type.id, val).toJson());
-            },
-          )
-      ),
-      actions: <Widget>[
-        FlatButton(
-          child: Text('Fechar'),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
-        FlatButton(
-          onPressed: () {
-            if (key.currentState.validate()) {
-              key.currentState.save();
-              Navigator.of(context).pop();
-            }
-          },
-          child: Text('Salvar'),
-        )
-      ],
     ));
   }
 

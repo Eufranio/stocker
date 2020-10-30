@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -11,10 +13,12 @@ class FirebaseAuthService with ChangeNotifier {
 
   bool isLoading = false;
   User user;
-
-  //Stream<User> get onAuthStateChanged {
-  //  return _auth.onAuthStateChanged.map(_userFromFirebase);
-  //}
+  
+  Stream<User> get currentUser => _auth.onAuthStateChanged.map(_userFromFirebase);
+  
+  void checkCurrentUser() async {
+    await _auth.currentUser();
+  }
 
   Future<User> signInAnonymously() async {
     isLoading = true;
