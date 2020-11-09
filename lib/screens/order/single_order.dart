@@ -17,7 +17,7 @@ class SingleOrderScreen extends StatefulWidget {
   final Store store;
   final Stock stock;
 
-  SingleOrderScreen(this.product, this.store, this.stock);
+  SingleOrderScreen(this.store, this.stock, this.product);
 
   @override
   State createState() => _SingleOrderScreenState();

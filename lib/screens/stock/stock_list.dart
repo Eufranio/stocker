@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:stocker/components/models/product.dart';
 import 'package:stocker/components/models/stock.dart';
 import 'package:stocker/components/models/store.dart';
+import 'package:stocker/components/route/routes.dart';
 import 'package:stocker/components/widgets/product_display.dart';
 import 'package:stocker/screens/stock/stock_screen.dart';
 
@@ -75,9 +76,9 @@ class _StockListScreenState extends State<StockListScreen> {
   }
 
   Widget _buildProduct(Stock stock) {
+    var userRef = context.read<DocumentReference>();
     return FutureBuilder(
-      future: Provider.of<DocumentReference>(context, listen: false)
-          .collection('products')
+      future: userRef.collection('products')
           .document(stock.product)
           .get(),
       builder: (context, AsyncSnapshot<DocumentSnapshot> snapshot) {
@@ -99,9 +100,12 @@ class _StockListScreenState extends State<StockListScreen> {
                   )
               ),
               Expanded(
-                child: ProductDisplay(widget.store, product, height: 150, onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => StockScreen(stock, product, widget.store)));
-                },),
+                child: ProductDisplay(
+                  widget.store,
+                  product,
+                  height: 150,
+                  onPressed: () => Navigator.pushNamed(context, Routes.stock, arguments: [userRef, widget.store, stock, product])
+                ),
               )
             ],
           );

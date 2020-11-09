@@ -8,6 +8,7 @@ import 'package:stocker/components/models/product.dart';
 import 'package:stocker/components/models/product_attribute.dart';
 import 'package:stocker/components/models/stock.dart';
 import 'package:stocker/components/models/store.dart';
+import 'package:stocker/components/route/routes.dart';
 import 'package:stocker/components/widgets/attribute_list.dart';
 import 'package:stocker/components/widgets/product_display.dart';
 import 'package:stocker/screens/order/order_history.dart';
@@ -17,7 +18,7 @@ import 'package:stocker/screens/product/product_screen.dart';
 
 class StockScreen extends StatefulWidget {
 
-  StockScreen(this.stock, this.product, this.store);
+  StockScreen(this.store, this.stock, this.product);
 
   Stock stock;
   Product product;
@@ -116,6 +117,7 @@ class _StockScreenState extends State<StockScreen> {
   }
 
   Widget _buildAttributeMenu(BuildContext context) {
+    var userRef = context.read<DocumentReference>();
     return Stack(
       children: [
         AttributeList(widget.store, widget.product),
@@ -123,7 +125,7 @@ class _StockScreenState extends State<StockScreen> {
           bottom: 10, right: 10,
           child: FloatingActionButton(
             child: Icon(Icons.search),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductScreen(widget.product, widget.store)))
+            onPressed: () => Navigator.pushNamed(context, Routes.product, arguments: [userRef, widget.store, widget.product])
               .then((value) => setState(() {})),
           ),
         )
@@ -132,6 +134,7 @@ class _StockScreenState extends State<StockScreen> {
   }
 
   Widget _buildNotesMenu(BuildContext context) {
+    var userRef = context.read<DocumentReference>();
     return ListView(
       children: [
         ListTile(
@@ -150,19 +153,15 @@ class _StockScreenState extends State<StockScreen> {
                 setState(() {});
               },
             ),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => OrderHistoryScreen(widget.stock, widget.store)));
-            }
+            onTap: () => Navigator.pushNamed(context, Routes.orderHistory, arguments: [userRef, widget.store, widget.stock])
           )
         ),
         ListTile(
             title: _buildCard(context,
                 icon: Icon(Icons.create_new_folder, color: Colors.white),
                 title: Text('Nova nota', style: TextStyle(color: Colors.white, fontSize: 20)),
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => SingleOrderScreen(widget.product, widget.store, widget.stock)))
-                    .then((value) => setState(() {}));
-                },
+                onTap: () => Navigator.pushNamed(context, Routes.order, arguments: [userRef, widget.store, widget.stock, widget.product])
+                    .then((value) => setState(() {})),
                 trailing: PopupMenuButton(
                   icon: Icon(Icons.more_vert, color: Colors.white),
                   itemBuilder: (context) => [

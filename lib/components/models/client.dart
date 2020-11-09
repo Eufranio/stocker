@@ -3,7 +3,7 @@ class Client {
 
   String id, name, address, city, phone, image_url;
 
-  Client(this.id, this.name, this.address, this.city, this.phone, this.image_url);
+  Client([this.id, this.name, this.address, this.city, this.phone, this.image_url]);
 
   Client.fromMap(String id, Map snapshot) :
       id = id,

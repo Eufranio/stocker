@@ -22,7 +22,7 @@ class ProductScreen extends StatefulWidget {
   final Product product;
   final Store store;
 
-  ProductScreen(this.product, this.store);
+  ProductScreen(this.store, this.product);
 
   @override
   State createState() => _ProductScreenState();

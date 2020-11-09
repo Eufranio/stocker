@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stocker/components/models/store.dart';
+import 'package:stocker/components/route/routes.dart';
 import 'package:stocker/screens/attribute/attribute_list.dart';
 import 'package:stocker/screens/client/client_list.dart';
 import 'package:stocker/screens/product/product_list.dart';
@@ -15,6 +16,7 @@ class StoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var userRef = Provider.of<DocumentReference>(context, listen: false);
     return Scaffold(
       appBar: AppBar(
         actions: <Widget>[
@@ -109,23 +111,21 @@ class StoreScreen extends StatelessWidget {
                 children: <Widget>[
                   RaisedButton.icon(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StockListScreen(store))),
+                      onPressed: () => Navigator.pushNamed(context, Routes.stockList, arguments: [userRef, store]),
                       icon: Icon(Icons.shopping_cart),
                       label: Text('Estoque'),
                       color: Colors.white.withOpacity(0.8),
                   ),
                   RaisedButton.icon(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductListScreen(store))),
+                      onPressed: () => Navigator.pushNamed(context, Routes.productList, arguments: [userRef, store]),
                       icon: Icon(Icons.category),
                       label: Text('Produtos'),
                       color: Colors.white.withOpacity(0.8),
                   ),
                   RaisedButton.icon(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => AttributeListScreen(store, context.read<DocumentReference>())));
-                      },
+                      onPressed: () => Navigator.pushNamed(context, Routes.attributeList, arguments: [userRef, store]),
                       icon: Icon(Icons.edit),
                       label: Text('Atributos'),
                       color: Colors.white.withOpacity(0.8),
@@ -139,9 +139,7 @@ class StoreScreen extends StatelessWidget {
                   ),
                   RaisedButton.icon(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => ClientListScreen(store)));
-                      },
+                      onPressed: () => Navigator.pushNamed(context, Routes.clientList, arguments: [userRef, store]),
                       icon: Icon(Icons.person),
                       label: Text('Clientes'),
                       color: Colors.white.withOpacity(0.8),

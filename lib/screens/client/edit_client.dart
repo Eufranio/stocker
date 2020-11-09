@@ -10,13 +10,15 @@ import 'package:provider/provider.dart';
 import 'package:stocker/components/models/client.dart';
 import 'package:stocker/components/models/store.dart';
 import 'package:stocker/components/user.dart';
+import 'package:stocker/components/viewmodels/client/edit_client_view_model.dart';
+import 'package:stocker/components/widgets/cached_image.dart';
 
 class EditClientScreen extends StatefulWidget {
 
-  final Store store;
-  final Client client;
+  final EditClientViewModel viewModel;
 
-  EditClientScreen(this.store, this.client);
+  EditClientScreen(Store store, Client client, DocumentReference userRef) :
+      viewModel = EditClientViewModel(client, store, userRef);
 
   @override
   State createState() => _EditClientScreenState();
@@ -24,67 +26,41 @@ class EditClientScreen extends StatefulWidget {
 
 class _EditClientScreenState extends State<EditClientScreen> {
 
-  var picker = ImagePicker();
-  var formKey = GlobalKey<FormState>();
   var scaffoldKey = GlobalKey<ScaffoldState>();
-  var phoneFormatter = new MaskTextInputFormatter(mask: '(##) # ####-####', filter: { "#": RegExp(r'[0-9]') });
-  File image;
 
   @override
   Widget build(BuildContext context) {
     var name = TextFormField(
       decoration: InputDecoration(labelText: 'Nome'),
-      initialValue: widget.client.name,
-      validator: (val) {
-        if (val == null || val.isEmpty)
-          return 'Preencha este campo!';
-        return null;
-      },
-      onSaved: (val) {
-        widget.client.name = val;
-      },
+      initialValue: widget.viewModel.client.name,
+      validator: widget.viewModel.validateField,
+      onSaved: widget.viewModel.saveName,
     );
 
     var address = TextFormField(
-      initialValue: widget.client.address,
+      initialValue: widget.viewModel.client.address,
       decoration: InputDecoration(labelText: 'Endereço'),
-      validator: (val) {
-        if (val == null || val.isEmpty)
-          return 'Preencha este campo!';
-        return null;
-      },
-      onSaved: (val) {
-        widget.client.address = val;
-      },
+      validator: widget.viewModel.validateField,
+      onSaved: widget.viewModel.saveAddress,
     );
 
     var city = TextFormField(
-      initialValue: widget.client.city,
+      initialValue: widget.viewModel.client.city,
       decoration: InputDecoration(labelText: 'Cidade'),
-      validator: (val) {
-        if (val == null || val.isEmpty)
-          return 'Preencha este campo!';
-        return null;
-      },
-      onSaved: (val) {
-        widget.client.city = val;
-      },
+      validator: widget.viewModel.validateField,
+      onSaved: widget.viewModel.saveCity,
     );
 
     var phone = TextFormField(
-      initialValue: widget.client.phone,
+      initialValue: widget.viewModel.client.phone,
       keyboardType: TextInputType.number,
       decoration: InputDecoration(labelText: 'Telefone'),
-      inputFormatters: [phoneFormatter],
-      validator: (val) {
-        if (val == null || val.isEmpty)
-          return 'Preencha este campo!';
-        return null;
-      },
-      onSaved: (val) {
-        widget.client.phone = val;
-      },
+      inputFormatters: [widget.viewModel.phoneFormatter],
+      validator: widget.viewModel.validateField,
+      onSaved: widget.viewModel.savePhone,
     );
+
+    var formKey = GlobalKey<FormState>();
 
     return Scaffold(
       key: scaffoldKey,
@@ -96,41 +72,15 @@ class _EditClientScreenState extends State<EditClientScreen> {
         onPressed: () {
           if (formKey.currentState.validate()) {
             formKey.currentState.save();
-
             showDialog(context: context,
                 barrierDismissible: false,
                 builder: (ctx) {
-                  var ref = context.read<DocumentReference>()
-                      .collection('stores')
-                      .document(widget.store.id)
-                      .collection('clients')
-                      .document(widget.client.id);
-                  ref.setData(widget.client.toJson())
-                      .then((_) {
-                    var user = context.read<User>();
-                    var storage = FirebaseStorage.instance.ref()
-                        .child('${user.uid}/stores/${widget.store.id}/clients/${ref.documentID}/icon.png');
-                    if (image != null) {
-                      storage.putFile(image).onComplete
-                          .then((_) => storage.getDownloadURL())
-                          .then((url) => setState(() {
-                        widget.client.image_url = url;
-                        context.read<DocumentReference>()
-                            .collection('stores')
-                            .document(widget.store.id)
-                            .collection('clients')
-                            .document(ref.documentID)
-                            .setData(widget.client.toJson())
-                            .then((_) {
-                          var count = 0;
-                          Navigator.popUntil(context, (route) => count++ == 2);
-                        });
-                      }));
-                    } else {
+                  widget.viewModel.saveClient()
+                    .then((ref) => widget.viewModel.uploadImage())
+                    .then((_) {
                       var count = 0;
                       Navigator.popUntil(context, (route) => count++ == 2);
-                    }
-                  });
+                    });
                   return AlertDialog(
                       insetPadding: EdgeInsets.zero,
                       content: Column(
@@ -201,25 +151,16 @@ class _EditClientScreenState extends State<EditClientScreen> {
           children: [
             IconButton(
                 icon: Icon(Icons.delete, color: Colors.purple),
-                onPressed: () {
-                  setState(() {
-                    image = null;
-                    widget.client.image_url = null;
+                onPressed: () => widget.viewModel.removeImage().then((_) =>
                     scaffoldKey.currentState.showSnackBar(SnackBar(
                         content: Text('Imagem removida!'),
                         duration: Duration(seconds: 2)
-                    ));
-                  });
-                }
+                    ))
+                )
             ),
             IconButton(
                 icon: Icon(Icons.edit, color: Colors.purple),
-                onPressed: () {
-                  picker.getImage(source: ImageSource.gallery).then((value) => setState(() {
-                    if (value != null)
-                      image = File(value.path);
-                  }));
-                }
+                onPressed: widget.viewModel.pickImage,
             ),
           ],
         )
@@ -233,22 +174,13 @@ class _EditClientScreenState extends State<EditClientScreen> {
       child: InkWell(
         child: Container(
           height: 200,
-          child: _getImage(),
+          child: CachedImage(
+            imageUrl: widget.viewModel.client.image_url,
+            defaultImageHeight: 150,
+            height: 150,
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _getImage() {
-    if (image != null)
-      return Image.file(image);
-    if (widget.client.image_url == null)
-      return FlutterLogo(size: 150);
-    return CachedNetworkImage(
-        imageUrl: widget.client.image_url,
-        height: 200,
-        placeholder: (context, url) => Center(child: CircularProgressIndicator()),
-        errorWidget: (context, url, error) => Icon(Icons.error)
     );
   }
 

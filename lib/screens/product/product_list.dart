@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stocker/components/models/product.dart';
 import 'package:stocker/components/models/store.dart';
+import 'package:stocker/components/route/routes.dart';
 import 'package:stocker/components/widgets/product_display.dart';
 import 'package:stocker/screens/product/product_screen.dart';
 
@@ -52,6 +53,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   Widget _buildSearchBar() {
+    var userRef = context.read<DocumentReference>();
     return Padding(
         padding: EdgeInsets.symmetric(horizontal: 15),
         child: SearchBar<Product>(
@@ -70,7 +72,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 .then((products) => products.where((product) => product.name.toLowerCase().startsWith(str.toLowerCase())).toList());
           },
           suggestions: products,
-          onItemFound: (product, index) => _buildProduct(product),
+          onItemFound: (product, index) => ProductDisplay(
+              widget.store,
+              product,
+              onPressed: () => Navigator.pushNamed(context, Routes.product, arguments: [userRef, widget.store, product])
+          ),
         )
     );
   }
@@ -114,12 +120,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
         )
       ],
     ));
-  }
-
-  Widget _buildProduct(Product product) {
-    return ProductDisplay(widget.store, product, onPressed: () {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ProductScreen(product, widget.store)));
-    },);
   }
 
 }

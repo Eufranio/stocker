@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:stocker/components/firebase_auth_service.dart';
+import 'package:stocker/components/route/routes.dart';
 import 'package:stocker/components/user.dart';
 import 'package:stocker/screens/home.dart';
 import 'package:stocker/screens/login.dart';
@@ -72,6 +73,7 @@ class MyApp extends StatelessWidget {
           border: OutlineInputBorder(),
         )
       ),
+      onGenerateRoute: Routes.generateRoute,
       home: Consumer<User>(
         builder: (_, user, __) {
           return user == null ? LoginPage() : HomePage();

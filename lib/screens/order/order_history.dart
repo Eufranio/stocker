@@ -6,6 +6,7 @@ import 'package:stocker/components/models/client.dart';
 import 'package:stocker/components/models/receipt.dart';
 import 'package:stocker/components/models/stock.dart';
 import 'package:stocker/components/models/store.dart';
+import 'package:stocker/components/route/routes.dart';
 import 'package:stocker/screens/client/client_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
@@ -13,7 +14,7 @@ class OrderHistoryScreen extends StatefulWidget {
   final Stock stock;
   final Store store;
 
-  OrderHistoryScreen(this.stock, this.store);
+  OrderHistoryScreen(this.store, this.stock);
 
   @override
   State createState() => _OrderHistoryScreenState();
@@ -102,9 +103,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Widget _buildListTile(BuildContext context, Receipt receipt) {
+    var userRef = context.read<DocumentReference>();
     return FutureBuilder(
-      future: receipt.client_id == null ? Future.value(true) : context.read<DocumentReference>()
-          .collection('stores')
+      future: receipt.client_id == null ? Future.value(true) : userRef.collection('stores')
           .document(widget.store.id)
           .collection('clients')
           .document(receipt.client_id)
@@ -171,9 +172,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 ));
               },
             ),
-            onTap: client == null ? null : () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => ClientScreen(widget.store, client)));
-            },
+            onTap: client == null ? null : () => Navigator.pushNamed(context, Routes.client, arguments: [userRef, widget.store, client]),
           );
         }
         return Center(child: Text('Carregando...'),);

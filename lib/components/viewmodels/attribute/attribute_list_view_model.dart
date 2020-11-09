@@ -4,13 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:stocker/components/models/attribute_type.dart';
 import 'package:stocker/components/models/product_attribute.dart';
 import 'package:stocker/components/models/store.dart';
-import 'package:stocker/components/viewmodels/base_view_model.dart';
+import 'package:stocker/components/viewmodels/store/store_view_model.dart';
 
-class AttributeViewModel extends BaseViewModel {
+class AttributeViewModel extends StoreViewModel {
 
-  AttributeViewModel(this.store, DocumentReference userRef) : super(userRef);
-
-  final Store store;
+  AttributeViewModel(Store store, DocumentReference userRef) : super(store, userRef);
 
   String get appBarTitle => 'Atributos de ${store.name}';
 

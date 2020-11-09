@@ -1,15 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:stocker/components/models/client.dart';
 import 'package:stocker/components/models/store.dart';
+import 'package:stocker/components/route/routes.dart';
+import 'package:stocker/components/viewmodels/client/client_view_model.dart';
 import 'package:stocker/components/widgets/cached_image.dart';
-import 'package:stocker/screens/client/edit_client.dart';
 
 class ClientScreen extends StatefulWidget {
 
-  final Store store;
-  final Client client;
+  final ClientViewModel viewModel;
 
-  ClientScreen(this.store, this.client);
+  ClientScreen(Store store, Client client, DocumentReference userRef) :
+        viewModel = ClientViewModel(client, store, userRef);
 
   @override
   State createState() => _ClientScreenState();
@@ -21,14 +23,13 @@ class _ClientScreenState extends State<ClientScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.client.name),
+        title: Text(widget.viewModel.client.name),
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.edit),
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => EditClientScreen(widget.store, widget.client)))
-            .then((value) => setState(() {}));
-        },
+        onPressed: () => Navigator.pushNamed(context, Routes.clientEdit, arguments: [
+          widget.viewModel.userRef, widget.viewModel.store, widget.viewModel.client
+        ]).then((value) => setState(() {}))
       ),
       body: Container(
         child: Column(
@@ -40,25 +41,25 @@ class _ClientScreenState extends State<ClientScreen> {
                   _buildCard(
                     context,
                     icon: Icon(Icons.create, color: Colors.white),
-                    title: Text(widget.client.name, style: TextStyle(fontSize: 20, color: Colors.white)),
+                    title: Text(widget.viewModel.client.name, style: TextStyle(fontSize: 20, color: Colors.white)),
                     subtitle: Text('Nome', style: TextStyle(color: Colors.white))
                   ),
                   _buildCard(
                       context,
                       icon: Icon(Icons.home, color: Colors.white),
-                      title: Text(widget.client.address, style: TextStyle(fontSize: 20, color: Colors.white)),
+                      title: Text(widget.viewModel.client.address, style: TextStyle(fontSize: 20, color: Colors.white)),
                       subtitle: Text('Endereço', style: TextStyle(color: Colors.white))
                   ),
                   _buildCard(
                       context,
                       icon: Icon(Icons.home_work_outlined, color: Colors.white),
-                      title: Text(widget.client.city, style: TextStyle(fontSize: 20, color: Colors.white)),
+                      title: Text(widget.viewModel.client.city, style: TextStyle(fontSize: 20, color: Colors.white)),
                       subtitle: Text('Cidade', style: TextStyle(color: Colors.white))
                   ),
                   _buildCard(
                       context,
                       icon: Icon(Icons.phone, color: Colors.white),
-                      title: Text(widget.client.phone, style: TextStyle(fontSize: 20, color: Colors.white)),
+                      title: Text(widget.viewModel.client.phone, style: TextStyle(fontSize: 20, color: Colors.white)),
                       subtitle: Text('Telefone', style: TextStyle(color: Colors.white))
                   )
                 ],
@@ -82,7 +83,7 @@ class _ClientScreenState extends State<ClientScreen> {
                 child: Card(
                   color: Colors.white38,
                   elevation: 10,
-                  child: CachedImage(imageUrl: widget.client.image_url),
+                  child: CachedImage(imageUrl: widget.viewModel.client.image_url),
                 ),
               ),
             ),
@@ -91,19 +92,19 @@ class _ClientScreenState extends State<ClientScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(widget.client.name, style: TextStyle(
+                    Text(widget.viewModel.client.name, style: TextStyle(
                       fontSize: 22,
                       color: Colors.purple,
                     )),
-                    Text(widget.client.address, style: TextStyle(
+                    Text(widget.viewModel.client.address, style: TextStyle(
                         fontSize: 15,
                         color: Colors.black87
                     )),
-                    Text(widget.client.city, style: TextStyle(
+                    Text(widget.viewModel.client.city, style: TextStyle(
                         fontSize: 15,
                         color: Colors.black87
                     )),
-                    Text(widget.client.phone, style: TextStyle(
+                    Text(widget.viewModel.client.phone, style: TextStyle(
                         fontSize: 15,
                         color: Colors.black87
                     )),
@@ -134,14 +135,14 @@ class _ClientScreenState extends State<ClientScreen> {
         child: Stack(
           alignment: Alignment.bottomCenter,
           children: <Widget>[
-            CachedImage(imageUrl: widget.client.image_url),
+            CachedImage(imageUrl: widget.viewModel.client.image_url),
             Container(
               color: Colors.purple.withOpacity(0.6),
               width: double.maxFinite,
               child: Padding(
                 padding: EdgeInsets.all(20),
                 child: Text(
-                  '${widget.client.name} (${widget.client.city})',
+                  '${widget.viewModel.client.name} (${widget.viewModel.client.city})',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 20, color: Colors.white),
                 ),

@@ -1,10 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flappy_search_bar/flappy_search_bar.dart';
-import 'package:flappy_search_bar/search_bar_style.dart';
 import 'package:flutter/material.dart';
 import 'package:stocker/components/models/attribute_type.dart';
 import 'package:stocker/components/models/store.dart';
-import 'package:stocker/components/viewmodels/attribute/attribute_view_model.dart';
+import 'package:stocker/components/viewmodels/attribute/attribute_list_view_model.dart';
+import 'package:stocker/components/widgets/search_bar_wrapper.dart';
 import 'package:stocker/components/widgets/stream_utils.dart';
 import 'package:stocker/screens/attribute/create_attribute_dialog.dart';
 import 'package:stocker/screens/attribute/create_attribute_type_dialog.dart';
@@ -13,7 +12,8 @@ class AttributeListScreen extends StatefulWidget {
 
   final AttributeViewModel viewModel;
 
-  AttributeListScreen(Store store, DocumentReference userRef) : viewModel = AttributeViewModel(store, userRef);
+  AttributeListScreen(Store store, DocumentReference userRef) :
+        viewModel = AttributeViewModel(store, userRef);
 
   @override
   State createState() => _AttributeListScreenState();
@@ -44,46 +44,30 @@ class _AttributeListScreenState extends State<AttributeListScreen> {
         }),
       ),
       body: Container(
-        child: widget.viewModel.attributeTypes.streamBuilder(_buildSearchBar)
+        child: widget.viewModel.attributeTypes.streamBuilder((list) => SearchBarWrapper(list, widget.viewModel.search, _buildItem))
       ),
     );
   }
 
-  Widget _buildSearchBar(List<AttributeType> types) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 15),
-      child: SearchBar<AttributeType>(
-        emptyWidget: Center(child: Text('Nada para mostrar', style: TextStyle(color: Colors.purple, fontSize: 25))),
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        crossAxisCount: (MediaQuery.of(context).size.width / 200).floor(),
-        hintText: 'Pesquisar',
-        searchBarStyle: SearchBarStyle(
-            padding: EdgeInsets.symmetric(horizontal: 10),
-            borderRadius: BorderRadius.circular(30)
-        ),
-        onSearch: widget.viewModel.search,
-        onItemFound: (attribute, index) => Container(
-          color: Color.fromRGBO(142, 142, 147, .15),
-          child: ListTile(
-            contentPadding: EdgeInsets.all(10),
-            title: Text(attribute.name, style: TextStyle(color: Colors.purple),),
-            onTap: () => _showListDialog(context, attribute),
-            trailing: IconButton(
-              icon: Icon(Icons.delete, color: Colors.purpleAccent,),
-              onPressed: () => _showDeleteDialog(context, attribute).then((value) {
-                if (value == true) {
-                  key.currentState.showSnackBar(SnackBar(
-                    content: Text('Tipo de atributo removido com sucesso!'),
-                    backgroundColor: Colors.purple,
-                    duration: Duration(seconds: 2),
-                  ));
-                }
-              }),
-            )
-          ),
-        ),
-        suggestions: types,
+  Widget _buildItem(AttributeType item) {
+    return Container(
+      color: Color.fromRGBO(142, 142, 147, .15),
+      child: ListTile(
+          contentPadding: EdgeInsets.all(10),
+          title: Text(item.name, style: TextStyle(color: Colors.purple),),
+          onTap: () => _showListDialog(context, item),
+          trailing: IconButton(
+            icon: Icon(Icons.delete, color: Colors.purpleAccent,),
+            onPressed: () => _showDeleteDialog(context, item).then((value) {
+              if (value == true) {
+                key.currentState.showSnackBar(SnackBar(
+                  content: Text('Tipo de atributo removido com sucesso!'),
+                  backgroundColor: Colors.purple,
+                  duration: Duration(seconds: 2),
+                ));
+              }
+            }),
+          )
       ),
     );
   }

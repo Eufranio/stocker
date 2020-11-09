@@ -1,5 +1,5 @@
 import 'package:stocker/components/models/product_attribute.dart';
-import 'package:stocker/components/viewmodels/attribute/attribute_view_model.dart';
+import 'package:stocker/components/viewmodels/attribute/attribute_list_view_model.dart';
 
 class CreateAttributeDialogViewModel extends AttributeViewModel {
 
