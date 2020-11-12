@@ -2,33 +2,33 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:stocker/components/models/client.dart';
 import 'package:stocker/components/models/product.dart';
 import 'package:stocker/components/models/receipt.dart';
 import 'package:stocker/components/models/stock.dart';
 import 'package:stocker/components/models/store.dart';
 import 'package:stocker/components/user.dart';
+import 'package:stocker/components/viewmodels/receipt/edit_receipt_view_model.dart';
 import 'package:stocker/components/widgets/product_display.dart';
 import 'package:stocker/screens/order/pick_client_dialog.dart';
 
-class SingleOrderScreen extends StatefulWidget {
+class EditStockReceiptScreen extends StatefulWidget {
 
-  final Product product;
-  final Store store;
-  final Stock stock;
+  final EditReceiptViewModel viewModel;
 
-  SingleOrderScreen(this.store, this.stock, this.product);
+  EditStockReceiptScreen(
+      Store store,
+      Stock stock,
+      Product product,
+      Receipt receipt,
+      DocumentReference userRef)
+      : viewModel = EditReceiptViewModel(receipt, stock, product, store, userRef);
 
   @override
-  State createState() => _SingleOrderScreenState();
+  State createState() => _EditStockReceiptScreenState();
 
 }
 
-class _SingleOrderScreenState extends State<SingleOrderScreen> {
-
-  var _isSelected = [true, false];
-  var receipt = Receipt();
-  Client selectedClient;
+class _EditStockReceiptScreenState extends State<EditStockReceiptScreen> {
 
   @override
   Widget build(BuildContext context) {
@@ -39,14 +39,14 @@ class _SingleOrderScreenState extends State<SingleOrderScreen> {
         labelText: 'Vendedor',
       ),
       initialValue: context.watch<User>().displayName,
-      onSaved: (val) {
-        receipt.client_name = val;
-      },
+      autovalidate: true,
+      validator: widget.viewModel.validateField,
+      onSaved: widget.viewModel.saveReceiptSeller,
     );
     
     var client = TextFormField(
-      enabled: selectedClient == null,
-      initialValue: selectedClient != null ? ('${selectedClient.name} (${selectedClient.city})') : null,
+      enabled: widget.viewModel.isClientFieldEnabled,
+      initialValue: widget.viewModel.selectedClientName,
       decoration: InputDecoration(
         labelText: 'Cliente',
       ),
@@ -55,20 +55,11 @@ class _SingleOrderScreenState extends State<SingleOrderScreen> {
           contentPadding: EdgeInsets.all(5),
           insetPadding: EdgeInsets.all(15),
           title: Text('Selecionar cliente'),
-          content: PickClientDialog(widget.store),
-        )).then((value) => setState(() {
-          this.selectedClient = value;
-          this.receipt.client_id = value?.id;
-        }));
+          content: PickClientDialog(widget.viewModel.store),
+        )).then((client) => setState(() => widget.viewModel.selectClient(client)));
       },
-      onSaved: (val) {
-        receipt.client_id = selectedClient.id;
-      },
-      validator: (_) {
-        if (receipt.client_id == null)
-          return 'Nenhum cliente selecionado!';
-        return null;
-      },
+      onSaved: (_) => widget.viewModel.saveClientId(),
+      validator: (_) => widget.viewModel.validateClient(),
     );
 
     var description = TextFormField(
@@ -79,15 +70,9 @@ class _SingleOrderScreenState extends State<SingleOrderScreen> {
       ),
       keyboardType: TextInputType.multiline,
       maxLines: 3,
-      validator: (val) {
-        if (val == null || val.isEmpty)
-          return 'Adicione uma descrição!';
-        return null;
-      },
+      validator: widget.viewModel.validateField,
       autovalidateMode: AutovalidateMode.onUserInteraction,
-      onSaved: (val) {
-        receipt.description = val;
-      },
+      onSaved: widget.viewModel.saveReceiptDescription,
     );
 
     var quantity = TextFormField(
@@ -98,49 +83,21 @@ class _SingleOrderScreenState extends State<SingleOrderScreen> {
         labelStyle: TextStyle(color: Colors.purple),
         border: OutlineInputBorder(),
       ),
-      validator: (str) {
-        if (str == null || str.isEmpty)
-          return 'Valor inválido!';
-        int amount = int.parse(str);
-        if (_isSelected[1]) { // removing
-          if (amount > widget.stock.quantity)
-            return 'Menor que estoque!';
-        }
-        return null;
-      },
+      validator: widget.viewModel.validateQuantity,
       autovalidateMode: AutovalidateMode.always,
-      onSaved: (val) {
-        int amount = int.parse(val);
-        receipt.amount = amount;
-        if (_isSelected[0]) {
-          widget.stock.quantity += amount;
-          receipt.adding = true;
-        } else {
-          widget.stock.quantity -= amount;
-          receipt.adding = false;
-        }
-      },
+      onSaved: widget.viewModel.saveQuantity,
     );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Editar ${widget.product.name}'),
+        title: Text('Editar ${widget.viewModel.product.name}'),
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.save),
         onPressed: () {
           if (key.currentState.validate()) {
             key.currentState.save();
-
-            receipt.date = DateTime.now();
-
-            var ref = context.read<DocumentReference>()
-                .collection('stores')
-                .document(widget.store.id)
-                .collection('stocks')
-                .document(widget.stock.id);
-            ref.setData(widget.stock.toJson())
-                .then((_) => ref.collection('receipts').document().setData(receipt.toJson()))
+            widget.viewModel.saveReceipt()
                 .then((_) => Navigator.pop(context));
           }
         },
@@ -157,17 +114,17 @@ class _SingleOrderScreenState extends State<SingleOrderScreen> {
                       width: 300,
                       child: Padding(
                         padding: EdgeInsets.all(20),
-                        child: ProductDisplay(widget.store, widget.product),
+                        child: ProductDisplay(widget.viewModel.store, widget.viewModel.product),
                       ),
                     ),
                     Padding(
                       padding: EdgeInsets.only(right: 10),
                       child: Column(
                         children: [
-                          Text('${widget.stock.quantity}',
+                          Text('${widget.viewModel.stock.quantity}',
                               style: TextStyle(fontSize: 40, color: Colors
                                   .black45)),
-                          Text(widget.stock.unity,
+                          Text(widget.viewModel.stock.unity,
                               style: TextStyle(fontSize: 25, color: Colors
                                   .black45))
                         ],
@@ -191,14 +148,7 @@ class _SingleOrderScreenState extends State<SingleOrderScreen> {
                                 color: Colors.purple,
                                 child: IconButton(
                                     icon: Icon(Icons.close, color: Colors.white),
-                                    onPressed: () {
-                                      if (this.selectedClient != null) {
-                                        setState(() {
-                                          this.selectedClient = null;
-                                          this.receipt.client_id = null;
-                                        });
-                                      }
-                                    }
+                                    onPressed: () => setState(widget.viewModel.resetClient)
                                 ),
                               ),
                             )
@@ -217,12 +167,8 @@ class _SingleOrderScreenState extends State<SingleOrderScreen> {
                                   Icon(Icons.add),
                                   Icon(Icons.remove)
                                 ],
-                                isSelected: _isSelected,
-                                onPressed: (index) => _setState(() {
-                                  bool previous = _isSelected[index];
-                                  _isSelected = [false, false];
-                                  _isSelected[index] = !previous;
-                                }),
+                                isSelected: widget.viewModel.buttons,
+                                onPressed: (index) => _setState(() => widget.viewModel.pushButton(index)),
                                 borderColor: Colors.purpleAccent,
                                 selectedBorderColor: Colors.purple,
                                 borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -235,7 +181,7 @@ class _SingleOrderScreenState extends State<SingleOrderScreen> {
                                   padding: EdgeInsets.fromLTRB(25, 0, 25, 20),
                                   child: quantity)),
                               Padding(padding: EdgeInsets.only(right: 35, bottom: 20, top: 10),
-                                  child: Center(child: Text('${widget.stock.unity}',
+                                  child: Center(child: Text('${widget.viewModel.stock.unity}',
                                     style: TextStyle(
                                         fontSize: 30,
                                         color: Colors.purple

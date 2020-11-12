@@ -13,36 +13,34 @@ import 'package:stocker/components/models/product_attribute.dart';
 import 'package:stocker/components/models/stock.dart';
 import 'package:stocker/components/models/store.dart';
 import 'package:stocker/components/user.dart';
+import 'package:stocker/components/viewmodels/product/product_view_model.dart';
 import 'package:stocker/components/widgets/attribute_list.dart';
 import 'package:stocker/components/widgets/attribute_text.dart';
 import 'package:stocker/components/widgets/cached_image.dart';
+import 'package:stocker/components/widgets/stream_utils.dart';
+import 'package:stocker/screens/product/add_attribute_dialog.dart';
 
 class ProductScreen extends StatefulWidget {
 
-  final Product product;
-  final Store store;
+  final ProductViewModel viewModel;
 
-  ProductScreen(this.store, this.product);
+  ProductScreen(Store store, Product product, DocumentReference userRef)
+      : viewModel = ProductViewModel(product, store, userRef);
 
   @override
   State createState() => _ProductScreenState();
-
 }
 
 class _ProductScreenState extends State<ProductScreen> {
 
-  File image;
-  String uploadedFileUrl;
-  var picker = ImagePicker();
   var scaffoldKey = GlobalKey<ScaffoldState>();
-  var images = Map<String, String>(); // path <> url
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         key: scaffoldKey,
         appBar: AppBar(
-          title: Text(widget.product.name),
+          title: Text(widget.viewModel.product.name),
           actions: [
             PopupMenuButton(
                 itemBuilder: (context) => [
@@ -114,7 +112,7 @@ class _ProductScreenState extends State<ProductScreen> {
                     ),
                   ),
                   Expanded(
-                    child: AttributeList(widget.store, widget.product),
+                    child: AttributeList(widget.viewModel.store, widget.viewModel.product),
                   )
                 ],
               ),
@@ -138,36 +136,24 @@ class _ProductScreenState extends State<ProductScreen> {
           children: [
             IconButton(
                 icon: Icon(Icons.delete, color: Colors.purple),
-                onPressed: () {
-                  setState(() {
-                    image = null;
-                    widget.product.imageUrl = null;
-                    context.read<DocumentReference>()
-                        .collection('products')
-                        .document(widget.product.id)
-                        .setData(widget.product.toJson()).then((value) => scaffoldKey.currentState.showSnackBar(SnackBar(
+                onPressed: () => widget.viewModel.setProductImage(null)
+                    .then((_) => setState(() {}))
+                    .then((_) =>
+                    scaffoldKey.currentState.showSnackBar(SnackBar(
                         content: Text('Imagem removida!'),
                         duration: Duration(seconds: 2)
-                    )));
-                  });
-                }
+                    ))
+                ),
             ),
             IconButton(
                 icon: Icon(Icons.edit, color: Colors.purple),
-                onPressed: () {
-                  picker.getImage(source: ImageSource.gallery).then((value) => setState(() {
-                    if (value != null)
-                      image = File(value.path);
-                  }));
-                }
+                onPressed: () => widget.viewModel.selectMainImage().then((_) => setState((){})),
             ),
             IconButton(
                 icon: Icon(Icons.cloud_upload, color: Colors.purple),
                 onPressed: () {
                   var user = context.read<User>();
-                  var storage = FirebaseStorage.instance.ref()
-                      .child('${user.uid}/${widget.store.id}/${widget.product.id}/icon.png');
-                  if (image == null) {
+                  if (!widget.viewModel.isImageSelected) {
                     scaffoldKey.currentState.showSnackBar(SnackBar(
                       content: Text('Nenhuma imagem selecionada!'),
                       backgroundColor: Colors.redAccent,
@@ -175,23 +161,11 @@ class _ProductScreenState extends State<ProductScreen> {
                     ));
                     return;
                   }
+
                   showDialog(context: context,
                       barrierDismissible: false,
-                      builder: (ctx) {
-                        storage.putFile(image).onComplete
-                            .then((_) => storage.getDownloadURL())
-                            .then((url) => setState(() {
-                          widget.product.imageUrl = url;
-                          context.read<DocumentReference>()
-                              .collection('products')
-                              .document(widget.product.id)
-                              .setData(widget.product.toJson());
-                          Navigator.pop(ctx);
-                          scaffoldKey.currentState.showSnackBar(SnackBar(
-                            content: Text('Imagem atualizada!'),
-                            duration: Duration(seconds: 2),
-                          ));
-                        }));
+                      builder: (context) {
+                        widget.viewModel.uploadImage(user).then((_) => Navigator.pop(context));
                         return AlertDialog(
                             insetPadding: EdgeInsets.zero,
                             content: Column(
@@ -209,7 +183,11 @@ class _ProductScreenState extends State<ProductScreen> {
                             )
                         );
                       }
-                  );
+                  )
+                  .then((value) => scaffoldKey.currentState.showSnackBar(SnackBar(
+                    content: Text('Imagem atualizada!'),
+                    duration: Duration(seconds: 2),
+                  )));
                 }
             ),
             IconButton(
@@ -230,14 +208,14 @@ class _ProductScreenState extends State<ProductScreen> {
           alignment: Alignment.bottomCenter,
           children: <Widget>[
             Container(
-              child: CachedImage(imageFile: this.image, imageUrl: widget.product?.imageUrl),
+              child: CachedImage(imageData: widget.viewModel.imageBytes, imageUrl: widget.viewModel.product?.imageUrl),
             ),
             Container(
               color: Colors.purple.withOpacity(0.6),
               width: double.maxFinite,
               child: Padding(
                 padding: EdgeInsets.all(10),
-                child: AttributeText(widget.store, widget.product),
+                child: AttributeText(widget.viewModel.store, widget.viewModel.product),
               ),
             ),
           ],
@@ -250,124 +228,78 @@ class _ProductScreenState extends State<ProductScreen> {
     var user = context.watch<User>();
     return Stack(
       children: [
-        FutureBuilder(
-          future: FirebaseStorage.instance.ref()
-              .child('${user.uid}/${widget.store.id}/${widget.product.id}/images/')
-              .listAll()
-              .then((value) async {
-                images.clear();
-                Map<dynamic, dynamic> items = value['items'];
-                await Future.forEach(items.values, (element) async {
-                  await FirebaseStorage.instance.ref()
-                      .child(element['path'])
-                      .getDownloadURL()
-                      .then((value) => images[element['path']] = value);
-                });
-                return images;
-              }),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              if (images.isEmpty) {
-                return Center(child: Text('Nenhuma imagem ainda!'));
-              }
-              return ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: images.length,
-                itemBuilder: (context, index) => PopupMenuButton(
-                  itemBuilder: (context) => [
-                    PopupMenuItem(child: Text('Excluir'), value: 0, height: 30),
-                    PopupMenuItem(child: Text('Usar como ícone'), value: 1)
-                  ],
-                  onSelected: (val) async {
-                    var path = images.keys.elementAt(index);
-                    if (val == 0) {
-                      FirebaseStorage.instance.ref()
-                          .child(path)
-                          .delete().then((value) {
-                            return context.read<DocumentReference>()
-                            .collection('products')
-                            .document(widget.product.id)
-                            .setData(widget.product.toJson());
-                          }).then((value) => setState(() {
-                            images.remove(path);
-                            scaffoldKey.currentState.showSnackBar(SnackBar(
-                              content: Text('Imagem excluída com sucesso!'),
-                              duration: Duration(seconds: 2),
-                            ));
-                          }));
-                    } else if (val == 1) {
-                      widget.product.imageUrl = images[path];
-                      context.read<DocumentReference>()
-                          .collection('products')
-                          .document(widget.product.id)
-                          .setData(widget.product.toJson())
-                          .then((value) => setState(() {
-                            scaffoldKey.currentState.showSnackBar(SnackBar(
-                              content: Text('Icone atualizado com sucesso!'),
-                              duration: Duration(seconds: 2),
-                            ));
-                          }));
-                    }
-                  },
-                  child: InkWell(
-                    child: Card(
-                      child: CachedNetworkImage(
-                          imageUrl: images[images.keys.elementAt(index)],
-                          height: 100,
-                          placeholder: (context, url) => Center(child: CircularProgressIndicator()),
-                          errorWidget: (context, url, error) => Icon(Icons.error)
-                      ),
-                    ),
+        widget.viewModel.fetchImages(user).asStream().streamBuilder((images) => ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: images.length,
+            itemBuilder: (context, index) => PopupMenuButton(
+              itemBuilder: (context) => [
+                PopupMenuItem(child: Text('Excluir'), value: 0, height: 30),
+                PopupMenuItem(child: Text('Usar como ícone'), value: 1)
+              ],
+              onSelected: (val) async {
+                var image = images[index];
+                if (val == 0) {
+                  widget.viewModel.deleteImage(image)
+                      .then((_) => setState(() => scaffoldKey.currentState.showSnackBar(SnackBar(
+                          content: Text('Imagem excluída com sucesso!'),
+                          duration: Duration(seconds: 2),
+                        ))
+                      )
+                  );
+                } else if (val == 1) {
+                  widget.viewModel.setProductImage(image.downloadUrl)
+                      .then((value) => setState(() {
+                        scaffoldKey.currentState.showSnackBar(SnackBar(
+                          content: Text('Icone atualizado com sucesso!'),
+                          duration: Duration(seconds: 2),
+                        ));
+                      })
+                  );
+                }
+              },
+              child: InkWell(
+                child: Card(
+                  child: CachedNetworkImage(
+                      imageUrl: images[index].downloadUrl,
+                      height: 100,
+                      placeholder: (context, url) => Center(child: CircularProgressIndicator()),
+                      errorWidget: (context, url, error) => Icon(Icons.error)
                   ),
                 ),
-              );
-            }
-            return Center(child: CircularProgressIndicator());
-          },
-        ),
+              ),
+            )
+        )),
         Positioned.fill(child: Align(
           alignment: Alignment.centerRight,
             child: FloatingActionButton(
               child: Icon(Icons.add),
               onPressed: () {
-                picker.getImage(source: ImageSource.gallery).then((value) => setState(() {
-                  if (value != null) {
-                    var user = context.read<User>();
-                    var storage = FirebaseStorage.instance.ref()
-                        .child('${user.uid}/${widget.store.id}/${widget.product.id}/images/${shortHash(UniqueKey())}.png');
-                    showDialog(context: context,
-                        barrierDismissible: false,
-                        builder: (ctx) {
-                          storage.putFile(File(value.path)).onComplete
-                              .then((_) => storage.getDownloadURL())
-                              .then((url) => setState(() {
-                            images[storage.path] = url;
-                            Navigator.pop(ctx);
-                            scaffoldKey.currentState.showSnackBar(SnackBar(
-                              content: Text('Imagem adicionada!'),
-                              duration: Duration(seconds: 2),
-                            ));
-                          }));
-                          return AlertDialog(
-                              insetPadding: EdgeInsets.zero,
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  CircularProgressIndicator(),
-                                  Padding(padding: EdgeInsets.only(top: 15), child: Text(
-                                    'Enviando...',
-                                    style: TextStyle(
-                                        fontSize: 24,
-                                        color: Colors.purple
-                                    ),
-                                  ))
-                                ],
-                              )
-                          );
-                        }
-                    );
-                  }
-                }));
+                showDialog(context: context,
+                    barrierDismissible: false,
+                    builder: (context) {
+                      widget.viewModel.uploadGalleryImage(user).then((_) => Navigator.pop(context));
+                      return AlertDialog(
+                          insetPadding: EdgeInsets.zero,
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(),
+                              Padding(padding: EdgeInsets.only(top: 15), child: Text(
+                                'Enviando...',
+                                style: TextStyle(
+                                    fontSize: 24,
+                                    color: Colors.purple
+                                ),
+                              ))
+                            ],
+                          )
+                      );
+                    }
+                )
+                .then((value) => scaffoldKey.currentState.showSnackBar(SnackBar(
+                  content: Text('Imagem adicionada com sucesso!'),
+                  duration: Duration(seconds: 2),
+                )));
               },
             )
         ))
@@ -376,135 +308,8 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   void _showNewAttributeDialog(BuildContext context) {
-    var key = GlobalKey<FormState>();
-
-    AttributeType type;
-    ProductAttribute selectedAttribute;
-
-    List<ProductAttribute> currentAttributes = List();
-
-    bool ignoring = false;
-
-    showDialog(context: context, child: StatefulBuilder(
-        builder: (context, _setState) => AlertDialog(
-          title: Text('Novo Atributo'),
-          content: Form(key: key, child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Padding(
-                      padding: EdgeInsets.only(right: 15),
-                      child: Text('Tipo')
-                  ),
-                  Expanded(child: StreamBuilder(
-                    stream: context.watch<DocumentReference>()
-                        .collection('stores')
-                        .document(widget.store.id)
-                        .collection('attribute_types')
-                        .snapshots(),
-                    builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                      if (snapshot.hasData) {
-                        List<AttributeType> attributes = snapshot.data.documents.map((e) =>
-                            AttributeType.fromMap(e.documentID, e.data)).toList();
-                        if (attributes.isEmpty)
-                          return Text('Nada para mostrar');
-                        return IgnorePointer(
-                          ignoring: ignoring,
-                          child: DropdownButtonFormField<AttributeType>(
-                            items: attributes.map((type) => DropdownMenuItem(
-                                value: type,
-                                child: Text(type.name)
-                            )).toList(),
-                            validator: (val) {
-                              return val == null ? 'Selecione um tipo!' : null;
-                            },
-                            onChanged: ignoring ? null : (val) {
-                              _setState(() {
-                                type = val;
-                              });
-                            },
-                            disabledHint: Text(type?.name ?? '...'),
-                          ),
-                        );
-                      }
-                      return Center(child: CircularProgressIndicator());
-                    },
-                  ))
-                ],
-              ),
-              Row(
-                children: [
-                  Padding(
-                      padding: EdgeInsets.only(right: 15),
-                      child: Text('Valor')
-                  ),
-                  Expanded(child: StreamBuilder(
-                    stream: context.watch<DocumentReference>()
-                        .collection('stores')
-                        .document(widget.store.id)
-                        .collection('product_attributes')
-                        .snapshots(),
-                    builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                      if (snapshot.hasData) {
-                        var allAttributes = snapshot.data.documents.map((e) =>
-                            ProductAttribute.fromMap(e.documentID, e.data)).toList();
-
-                        if (type != null) {
-                          currentAttributes = allAttributes.where((element) => element.type == type.id).toList();
-                        }
-
-                        if (currentAttributes.isEmpty) {
-                          currentAttributes = List.from(allAttributes);
-                        }
-                        return DropdownButtonFormField<ProductAttribute>(
-                          items: currentAttributes.map((t) => DropdownMenuItem(
-                              value: t,
-                              child: Text(t.value)
-                          )).toList(),
-                          validator: (val) {
-                            if (val == null)
-                              return 'Selecione um valor!';
-                            var productAttributes = currentAttributes.where((element) => widget.product.attributes.contains(element.id));
-                            if (widget.product.attributes.contains(val.id) ||
-                                productAttributes.any((element) => element.type == val.type))
-                              return 'Já adicionado!';
-                            return null;
-                          },
-                          onChanged: (val) {
-                            _setState(() {
-                              ignoring = true;
-                            });
-                          },
-                          autovalidate: true,
-                          onSaved: (val) => selectedAttribute = val,
-                        );
-                      }
-                      return Center(child: CircularProgressIndicator());
-                    },
-                  ))
-                ],
-              )
-            ],
-          )),
-          actions: [
-            FlatButton(
-              child: Text('Salvar'),
-              onPressed: () async {
-                if (key.currentState.validate()) {
-                  key.currentState.save();
-
-                  widget.product.attributes.add(selectedAttribute.id);
-                  DocumentReference ref = Provider.of<DocumentReference>(context, listen: false);
-                  ref.collection('products')
-                      .document(widget.product.id)
-                      .setData(widget.product.toJson());
-                  Navigator.of(context).pop();
-                }
-              },
-            )
-          ],
-        )
+    showDialog(context: context, child: AddAttributeDialog(
+        widget.viewModel.product, widget.viewModel.store, widget.viewModel.userRef
     )).then((value) => setState((){}));
   }
 
@@ -522,11 +327,7 @@ class _ProductScreenState extends State<ProductScreen> {
             autofocus: true,
             validator: (val) => val.isEmpty ? 'O nome não pode ser vazio!' : null,
             onSaved: (val) {
-              widget.product.name = val;
-              context.read<DocumentReference>()
-                  .collection('products')
-                  .document(widget.product.id)
-                  .setData(widget.product.toJson());
+              widget.viewModel.product.name = val;
             },
           )
       ),
@@ -535,7 +336,13 @@ class _ProductScreenState extends State<ProductScreen> {
           onPressed: () {
             if (key.currentState.validate()) {
               key.currentState.save();
-              Navigator.of(context).pop();
+              widget.viewModel.saveProduct()
+                .then((_) => Navigator.pop(context))
+                .then((_) => scaffoldKey.currentState.showSnackBar(SnackBar(
+                  content: Text('Imagem removida!'),
+                  duration: Duration(seconds: 2)
+                )
+              ));
             }
           },
           child: Text('Salvar'),
@@ -550,39 +357,8 @@ class _ProductScreenState extends State<ProductScreen> {
       actions: [
         FlatButton(
           child: Text('Remover'),
-          onPressed: () {
-            var ref = context.read<DocumentReference>();
-
-            // delete all stocks of this product
-            ref.collection('products')
-                .document(widget.product.id)
-                .delete()
-                .then((value) => ref.collection('stores')
-                  .document(widget.store.id)
-                  .collection('stocks')
-                  .where('product', isEqualTo: widget.product.id)
-                  .limit(1)
-                  .getDocuments())
-                .then((doc) {
-                  if (doc.documents.isEmpty)
-                    return Future.value();
-                  
-                  return doc.documents.first.reference
-                      .collection('receipts')
-                      .getDocuments()
-                      .then((snapshot) {
-                        var list = List<DocumentSnapshot>();
-                        list.add(doc.documents.first);
-                        list.addAll(snapshot.documents);
-                        return list;
-                      });
-                })
-                .then((value) {
-                  if (value != null && value.isNotEmpty) {
-                    return Future.forEach(value, (doc) => doc.reference.delete());
-                  }
-                  return Future.value();
-                })
+          onPressed: () async {
+            await widget.viewModel.deleteProduct()
                 .then((value) {
                   var count = 0;
                   Navigator.popUntil(context, (route) => count++ == 2);
@@ -652,35 +428,26 @@ class _ProductScreenState extends State<ProductScreen> {
           onPressed: () {
             if (key.currentState.validate()) {
               key.currentState.save();
-
-              var collectionReference = context.read<DocumentReference>()
-                  .collection('stores')
-                  .document(widget.store.id)
-                  .collection('stocks');
-
-              collectionReference.where('product', isEqualTo: widget.product.id)
-                  .limit(1)
-                  .getDocuments()
-                  .then((snapshot) {
-                    if (snapshot.documents.isNotEmpty) {
-                      Navigator.pop(context);
-                      scaffoldKey.currentState.showSnackBar(SnackBar(
-                        backgroundColor: Colors.redAccent,
-                        content: Text('Já existe um estoque desse produto!'),
-                        duration: Duration(seconds: 2),
-                      ));
-                    } else {
-                      collectionReference.document()
-                          .setData(Stock(null, amount, unit, widget.product.id).toJson())
-                          .then((value) {
-                            Navigator.pop(context);
-                            scaffoldKey.currentState.showSnackBar(SnackBar(
-                              content: Text('Estoque criado com sucesso!'),
-                              duration: Duration(seconds: 2),
-                            ));
-                          });
-                    }
+              widget.viewModel.getStock().then((stock) async {
+                if (stock != null) {
+                  Navigator.pop(context);
+                  scaffoldKey.currentState.showSnackBar(SnackBar(
+                    backgroundColor: Colors.redAccent,
+                    content: Text('Já existe um estoque desse produto!'),
+                    duration: Duration(seconds: 2),
+                  ));
+                  return;
+                } else {
+                  return widget.viewModel.createStock(amount, unit)
+                      .then((_) {
+                    Navigator.pop(context);
+                    scaffoldKey.currentState.showSnackBar(SnackBar(
+                      content: Text('Estoque criado com sucesso!'),
+                      duration: Duration(seconds: 2),
+                    ));
                   });
+                }
+              });
             }
           },
         ),

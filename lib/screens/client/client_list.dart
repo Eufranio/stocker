@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:stocker/components/models/client.dart';
 import 'package:stocker/components/models/store.dart';
 import 'package:stocker/components/route/routes.dart';
-import 'package:stocker/components/viewmodels/client/client_list_view_module.dart';
+import 'package:stocker/components/viewmodels/client/client_list_view_model.dart';
 import 'package:stocker/components/widgets/cached_image.dart';
 import 'package:stocker/components/widgets/stream_utils.dart';
 

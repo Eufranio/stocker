@@ -3,26 +3,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:preload_page_view/preload_page_view.dart';
 import 'package:provider/provider.dart';
-import 'package:stocker/components/models/attribute_type.dart';
 import 'package:stocker/components/models/product.dart';
-import 'package:stocker/components/models/product_attribute.dart';
+import 'package:stocker/components/models/receipt.dart';
 import 'package:stocker/components/models/stock.dart';
 import 'package:stocker/components/models/store.dart';
 import 'package:stocker/components/route/routes.dart';
+import 'package:stocker/components/viewmodels/stock/stock_view_model.dart';
 import 'package:stocker/components/widgets/attribute_list.dart';
 import 'package:stocker/components/widgets/product_display.dart';
-import 'package:stocker/screens/order/order_history.dart';
-import 'package:stocker/screens/order/single_order.dart';
-import 'package:stocker/screens/product/product_screen.dart';
 
 
 class StockScreen extends StatefulWidget {
 
-  StockScreen(this.store, this.stock, this.product);
+  final StockViewModel viewModel;
 
-  Stock stock;
-  Product product;
-  Store store;
+  StockScreen(Store store, Stock stock, Product product, DocumentReference userRef)
+      : viewModel = StockViewModel(stock, product, store, userRef);
 
   @override
   State createState() => _StockScreenState();
@@ -153,14 +149,14 @@ class _StockScreenState extends State<StockScreen> {
                 setState(() {});
               },
             ),
-            onTap: () => Navigator.pushNamed(context, Routes.orderHistory, arguments: [userRef, widget.store, widget.stock])
+            onTap: () => Navigator.pushNamed(context, Routes.receiptHistory, arguments: [userRef, widget.store, widget.stock, widget.product])
           )
         ),
         ListTile(
             title: _buildCard(context,
                 icon: Icon(Icons.create_new_folder, color: Colors.white),
                 title: Text('Nova nota', style: TextStyle(color: Colors.white, fontSize: 20)),
-                onTap: () => Navigator.pushNamed(context, Routes.order, arguments: [userRef, widget.store, widget.stock, widget.product])
+                onTap: () => Navigator.pushNamed(context, Routes.receiptEdit, arguments: [userRef, widget.store, widget.stock, widget.product, Receipt()])
                     .then((value) => setState(() {})),
                 trailing: PopupMenuButton(
                   icon: Icon(Icons.more_vert, color: Colors.white),

@@ -6,14 +6,18 @@ import 'package:provider/provider.dart';
 import 'package:stocker/components/models/product.dart';
 import 'package:stocker/components/models/store.dart';
 import 'package:stocker/components/route/routes.dart';
+import 'package:stocker/components/viewmodels/product/product_list_view_model.dart';
 import 'package:stocker/components/widgets/product_display.dart';
+import 'package:stocker/components/widgets/search_bar_wrapper.dart';
+import 'package:stocker/components/widgets/stream_utils.dart';
 import 'package:stocker/screens/product/product_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
 
-  final Store store;
+  final ProductListViewModel viewModel;
 
-  ProductListScreen(this.store);
+  ProductListScreen(Store store, DocumentReference userRef)
+      : viewModel = ProductListViewModel(store, userRef);
 
   @override
   State createState() => _ProductListScreenState();
@@ -21,13 +25,15 @@ class ProductListScreen extends StatefulWidget {
 
 class _ProductListScreenState extends State<ProductListScreen> {
 
-  var products = List<Product>();
+  var scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
+    var userRef = context.watch<DocumentReference>();
     return Scaffold(
+      key: scaffoldKey,
       appBar: AppBar(
-        title: Text('Produtos de ${widget.store.name}'),
+        title: Text('Produtos de ${widget.viewModel.store.name}'),
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
@@ -36,51 +42,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
         },
       ),
       body: Container(
-        child: StreamBuilder(
-          stream: Provider.of<DocumentReference>(context, listen: false)
-              .collection('products')
-              .snapshots(),
-          builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-            if (snapshot.hasData) {
-              this.products = snapshot.data.documents.map((e) => Product.fromMap(e.documentID, e.data)).toList();
-              return _buildSearchBar();
-            }
-            return Center(child: CircularProgressIndicator());
-          },
-        ),
+        child: widget.viewModel.products.streamBuilder((list) => SearchBarWrapper<Product>(
+            list, widget.viewModel.search,
+                (product) => ProductDisplay(
+                widget.viewModel.store,
+                product,
+                onPressed: () => Navigator.pushNamed(context, Routes.product, arguments: [userRef, widget.viewModel.store, product])
+            )
+        )),
       ),
     );
   }
 
-  Widget _buildSearchBar() {
-    var userRef = context.read<DocumentReference>();
-    return Padding(
-        padding: EdgeInsets.symmetric(horizontal: 15),
-        child: SearchBar<Product>(
-          emptyWidget: Center(child: Text('Nada para mostrar', style: TextStyle(color: Colors.purple, fontSize: 25))),
-          crossAxisCount: (MediaQuery.of(context).size.width / 200).floor(),
-          hintText: 'Pesquisar',
-          searchBarStyle: SearchBarStyle(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              borderRadius: BorderRadius.circular(30)
-          ),
-          onSearch: (str) {
-            return Provider.of<DocumentReference>(context, listen: false)
-                .collection('products')
-                .getDocuments()
-                .then((docs) => docs.documents.map((doc) => Product.fromMap(doc.documentID, doc.data)))
-                .then((products) => products.where((product) => product.name.toLowerCase().startsWith(str.toLowerCase())).toList());
-          },
-          suggestions: products,
-          onItemFound: (product, index) => ProductDisplay(
-              widget.store,
-              product,
-              onPressed: () => Navigator.pushNamed(context, Routes.product, arguments: [userRef, widget.store, product])
-          ),
-        )
-    );
-  }
-
+  String name;
   void _showCreateProductDialog(BuildContext context) {
     var key = GlobalKey<FormState>();
     showDialog(context: context, child: AlertDialog(
@@ -94,12 +68,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
             autofocus: true,
             validator: (val) => val.isEmpty ? 'O nome não pode ser vazio!' : null,
-            onSaved: (val) {
-              context.read<DocumentReference>()
-                  .collection('products')
-                  .document()
-                  .setData(Product(null, val, null, []).toJson());
-            },
+            onSaved: (val) => name = val,
           )
       ),
       actions: <Widget>[
@@ -107,16 +76,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
           onPressed: () {
             if (key.currentState.validate()) {
               key.currentState.save();
-              Navigator.of(context).pop();
+              widget.viewModel.createProduct(name)
+                  .then((_) => Navigator.of(context).pop())
+                  .then((_) => scaffoldKey.currentState.showSnackBar(SnackBar(
+                content: Text('Produto criado com sucesso!'),
+                duration: Duration(seconds: 2),
+              )));
             }
           },
           child: Text('Criar'),
         ),
         FlatButton(
           child: Text('Fechar'),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
+          onPressed: () => Navigator.of(context).pop(),
         )
       ],
     ));

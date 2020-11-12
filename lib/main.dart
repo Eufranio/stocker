@@ -8,7 +8,6 @@ import 'package:stocker/components/route/routes.dart';
 import 'package:stocker/components/user.dart';
 import 'package:stocker/screens/home.dart';
 import 'package:stocker/screens/login.dart';
-import 'package:stocker/components/widgets/stream_utils.dart';
 
 class Main {
   static FirebaseAuthService authService;

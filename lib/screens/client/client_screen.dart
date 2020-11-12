@@ -10,8 +10,8 @@ class ClientScreen extends StatefulWidget {
 
   final ClientViewModel viewModel;
 
-  ClientScreen(Store store, Client client, DocumentReference userRef) :
-        viewModel = ClientViewModel(client, store, userRef);
+  ClientScreen(Store store, Client client, DocumentReference userRef)
+      : viewModel = ClientViewModel(client, store, userRef);
 
   @override
   State createState() => _ClientScreenState();

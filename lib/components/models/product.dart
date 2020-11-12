@@ -3,7 +3,7 @@ class Product {
   String id, name, imageUrl;
   List<String> attributes;
 
-  Product(this.id, this.name, this.imageUrl, this.attributes);
+  Product([this.id, this.name, this.imageUrl, this.attributes]);
 
   Product.fromMap(String id, Map snapshot) :
       id = id,
